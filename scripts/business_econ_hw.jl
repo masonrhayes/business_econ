@@ -83,12 +83,6 @@ freqtable(df, :chosen, :j)
 
 # Q1
 
-gd = groupby(df, :i)
-
-
-gd
-
-
 
 
 # Q2 
@@ -119,11 +113,12 @@ for i in 1:90000
     q2_df[i,4] = stupid_indicator(q2_df[i,9], q2_df[i,10])
 end
 
-println("Freq Table with uncertain α")
-freqtable(q2_df, :chosen, :j)
 
 println("Freq Table with α = 1")
 freqtable(df, :chosen, :j)
+
+println("Freq Table with uncertain α")
+freqtable(q2_df, :chosen, :j)
 
 rename!(df, :chosen => :chosen1)
 rename!(q2_df, :chosen => :chosen2)
@@ -162,4 +157,8 @@ histogram(q2_df.α, xaxis = "α")
 
 histogram(q2_df.new_u, xaxis = ("Simulated Utility"), xlims = (-20,20)) 
 
-q2_df |> @vlplot(:point, x = :α, y = :p)
+
+histogram(q2_df.new_u_maximum, xaxis = ("Simulated Utility (Purchase = Yes)")) 
+
+
+plot(q2_df.α, q2_df.new_u_maximum, yaxis = ("Simulated Utility"), xaxis = "α")
