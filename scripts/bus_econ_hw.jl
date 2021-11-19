@@ -4,10 +4,13 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 87e3f1c2-48a1-11ec-3be6-114d0f4946e1
+# ╔═╡ ba28b0cc-b900-4bbb-8d40-6f628779bcb9
 using Pluto, Distributions, DataFrames, StatsBase, FreqTables, VegaLite, StatsPlots, Plots
 
-# ╔═╡ 8d01f0f1-3f0d-4929-bf2a-09ebe91b2365
+# ╔═╡ e80226ba-8932-47a0-b5bc-fec9a2e3e482
+md"10000 individuals, J+1 = 9 products, set parameters"
+
+# ╔═╡ 11280580-0b32-4b1d-9c29-814004a608e6
 begin
 	I = 10000
 	J = 8
@@ -15,8 +18,7 @@ begin
 	α = 1
 end
 
-# ╔═╡ 093ce7d5-90b5-4318-86c1-9d674477959a
-# Initialize dataframe
+# ╔═╡ 1a26ca12-8e66-47d0-8b53-e404a4f91762
 df = DataFrame(
     i = repeat(1:I, J+1), 
     j = repeat(0:J, I),
@@ -25,9 +27,7 @@ df = DataFrame(
     chosen1 = repeat(zeros(Float64, 1), 90000)
 )
 
-
-
-# ╔═╡ 0d504bb7-eeaf-4c3e-a18b-467987631fda
+# ╔═╡ f917ad47-f5e6-43a8-be02-a7fa2433d4f0
 # Define necessary functions
 
 begin
@@ -81,8 +81,7 @@ begin
 	end
 end
 
-
-# ╔═╡ 8925eaed-09e0-4c66-851f-f9aaf7a533f7
+# ╔═╡ ca6f68da-cd56-43b8-b1a7-7006053cecf8
 # Transform DF by adding price, x, and ξ
 begin
 transform!(df, :j => price => :p)
@@ -90,33 +89,34 @@ transform!(df, :j => xi => :ξ)
 transform!(df, :j => value => :x)
 end
 
-# ╔═╡ 79b4b8bd-9ca8-4186-a311-b204448d7372
-
+# ╔═╡ fdb1cecb-36e1-410e-9c0f-4c3211d384eb
 # utility
 for i in 1:90000
 	df[i,"u"] = β * df[i,"x"] - α * df[i,"p"] + df[i,"ξ"] + df[i,"ϵ"]
 end
 
-
-# ╔═╡ 37a6df4b-c530-46f1-937c-a3c0f084f2e8
-describe(df)
-
-# ╔═╡ 8e34833b-d687-48e3-858a-fa2308b03b00
+# ╔═╡ f0e318ee-e814-45cb-8bb7-93eb3a673b7e
 # Group by individual calculate maximumⱼ(uᵢⱼ)
 transform!(groupby(df, :i), :u => maximum => :u_maximum)
 
-# ╔═╡ 2937fee4-ab4e-4aed-ab1f-ecb99b0d6f0b
+# ╔═╡ 90f106bc-4e36-4e9e-9aa2-43aff3737ddf
 # make chosen = 1 if uᵢⱼ = maximumⱼ(uᵢⱼ)
 for i in 1:90000
     df[i,"chosen1"] = indicator(df[i,"u"], df[i,"u_maximum"])
 end
 
-# ╔═╡ eead4a00-cc6f-444a-a3fc-39c815e2bb0c
+# ╔═╡ 154f213b-c3e2-4578-88b0-0c5a6ced2310
 # How many consumers choose each good j?
 freqtable(df, :chosen1, :j)
 
-# ╔═╡ 9ff13b99-a2e4-4268-8c15-e2433efd1d74
-# Question 2; initialize dataframe
+# ╔═╡ 4aa87e62-a845-42c0-92f9-4bbd69c1fda5
+md"""
+***
+Now let's look at how things change when α ~ LogNormal(0.3, √0.1)
+"""
+
+# ╔═╡ 153ac234-3659-45b7-9ebc-a44d4a51be6b
+# initialize dataframe
 params = DataFrame(
     i = repeat(1:I, J+1), 
     j = repeat(0:J, I),
@@ -124,179 +124,313 @@ params = DataFrame(
     new_u = repeat(zeros(Float64, 1), 90000)
 )
 
-# ╔═╡ fe3c8f3a-a3e2-4c1f-b9dd-8bf75ac098c6
+# ╔═╡ ce64f43b-05a0-4818-bcb6-0b1c14127847
 # Checking that α was correctly calculated; it should be the same for a given i
 sort(params, order(:i))
 
-# ╔═╡ 07c2488e-ae83-445c-b551-c71825a8ad59
+# ╔═╡ e2fd7649-857b-4062-bbf9-977c1fe8a0b9
 # form df for Q2 and rename chosen1 to chosen 2
 q2_df = rename(select(leftjoin(df, params, on = [:i, :j]), Not([:u, :u_maximum])), :chosen1 => :chosen2)
 
-# ╔═╡ a449463b-7409-4ec1-88f8-154fe832d96a
+# ╔═╡ d73b870a-7c83-46bd-a980-2b83fdfd4692
 # Generate new_u
 
 for i in 1:90000
     q2_df[i, "new_u"] = β * q2_df[i, "x"] - q2_df[i, "α"] * q2_df[i, "p"] + q2_df[i, "ξ"] + q2_df[i, "ϵ"]
 end
 
-# ╔═╡ 99915d06-79d6-4e8b-b6de-45591c2a46d9
+# ╔═╡ 51527d78-c1d7-4923-97ea-9bedbe147ee4
 begin 
-# we see that α and new_u are of a bad type; change then to Float64
+# we see that α and new_u are of type Float64?; change them to Float64
 	q2_df[!, :α] = convert.(Float64, q2_df[:, :α])
 	q2_df[!, :new_u] = convert.(Float64, q2_df[:, :new_u])
 end
 
-# ╔═╡ dcbdcfd1-c4fe-4946-841c-9f0f4f3b0533
-describe(q2_df)
-
-# ╔═╡ 8baf00c1-d63a-462d-99e7-ffd4c5543d01
+# ╔═╡ 35aad317-8a50-4d8a-8d3c-b76e94bfce6d
 # Group by individual, calculate maximumⱼ(uᵢⱼ)
 transform!(groupby(q2_df, :i), :new_u => maximum => :new_u_maximum)
 
-# ╔═╡ a6230a1a-66de-46ba-97aa-a7e1f1e04349
-# Calculate chosen for q2_df
-begin
-	# rename!(q2_df, :chosen => :chosen2)
-	for i in 1:90000
-		q2_df[i,"chosen2"] = indicator(q2_df[i,"new_u"], q2_df[i,"new_u_maximum"])
-	end
+# ╔═╡ 4d92cfed-6d18-440a-b141-dc35baffa5c5
+# rename!(q2_df, :chosen => :chosen2)
+for i in 1:90000
+	q2_df[i,"chosen2"] = indicator(q2_df[i,"new_u"], q2_df[i,"new_u_maximum"])
 end
 
-# ╔═╡ f297fe40-1436-4f7f-baa2-05ba54bca9f3
-# Let's compare their frequency tables:
-begin
-	println("Freq Table with α = 1")
-	freqtable(df, :chosen1, :j)
-end
+# ╔═╡ 2867033b-4fa5-4a98-a4d0-f87e21c12fa7
+md"Let's compare the product choices"
 
-# ╔═╡ 94e76422-7bd5-461d-8d9d-319313d6625e
-begin
-	println("Freq Table with αᵢ ~ LogNormal(0.3, sqrt(0.10)")
-	freqtable(q2_df, :chosen2, :j)
-end
+# ╔═╡ 53b5ed1d-4fd2-4589-802c-b137b20d9aba
+freqtable(df, :chosen1, :j)
 
-# ╔═╡ baecfdc3-9432-4a96-a023-5afbb7b9eff9
+# ╔═╡ 621933bd-651e-44b7-99e5-bf1ac197261c
+freqtable(q2_df, :chosen2, :j)
+
+# ╔═╡ 04d781cd-7182-4142-ae9c-f20c720dfc00
 # Find utility conditional on purchase decision; 0 if no purchase, else u max
 begin
 	transform!(groupby(q2_df, :j), [:chosen2, :new_u] => cond_utility => :new_u_given_purchase)
 	transform!(groupby(df, :j), [:chosen1, :u] => cond_utility => :u_given_purchase)
 end
 
+# ╔═╡ 7911e666-77a0-40ac-bb20-4a74b90e8905
 # Calculate utility: = 0 if no purchase, otherwise equals the utility conditonal on purchasing
 transform!(q2_df, [:chosen2, :new_u] => ((x,y) -> x .* y) => :new_u_given_purchase)
 
+# ╔═╡ 939a1ce2-262b-48e5-be5f-b94867ff3d39
 transform!(df, [:chosen1, :u] => ((x,y) -> x .* y) => :u_given_purchase)
 
-
-
+# ╔═╡ e0ae73b2-edf5-4ef1-afad-e6711ebac405
+# Filter so that only rows where chosen ==1 
+begin
 df_purchased = filter(row -> row.chosen1 ==1.0, df)
 q2_df_purchased = filter(row -> row.chosen2 ==1.0, q2_df)
+end
 
+# ╔═╡ eda75465-c037-4590-a03e-8166b23e6e3c
 histogram(q2_df_purchased.new_u_given_purchase, label = "αᵢ ~ LogNormal(0.3, √(0.1)", xlabel = "Simulated Utility, Conditional on Purchasing", normalize = true)
 
+# ╔═╡ 34264042-3536-45cb-a5cd-cce9df948590
 histogram!(df_purchased.u_given_purchase, label = "α = 1", normalize = true, fillalpha = 0.8)
 
-
-# ╔═╡ abb0e61f-b9b8-4169-88cb-4889c5615309
+# ╔═╡ c54a5928-04c9-4c72-afc5-b29250b59ff9
 # Combine df and q2_df, group by j and find the total number of customers who purchase
-df_summary = combine(groupby(df_purchased, :j), :chosen1 => sum, :u_given_purchase => mean)
+begin
+	df_summary = combine(groupby(df_purchased, :j), :chosen1 => sum, :u_given_purchase => mean, :p => mean)
+	
+	q2_df_summary = combine(groupby(q2_df_purchased, :j), :chosen2 => sum, :α => mean, :new_u_given_purchase => mean, :p => mean)
 
-q2_df_summary = combine(groupby(q2_df_purchased, :j), :chosen2 => sum, :α => mean, :new_u_given_purchase => mean)
+	summary = leftjoin(df_summary, q2_df_summary, on = [:j, :p_mean])
+end
 
-summary = leftjoin(df_summary, q2_df_summary, on = [:j])
-
-# ╔═╡ ef1e40b4-f992-4933-9275-94cb5fb7ac58
-# Calculate market shares (note the market is covered in both scenarios)
+# ╔═╡ 939f556f-c2ca-4caf-8da0-8948d265e270
+# Calculate market shares (note the market is *not* covered with the LogNormal α)
 begin
 	transform!(summary, :chosen1_sum => (x -> 100x / sum(x)) => :market_share1)
 	transform!(summary, :chosen2_sum => (x -> 100x / sum(x)) => :market_share2)
 end
 
-# ╔═╡ 79fff197-03c5-42f5-8f29-8877a0de569a
-# checking that market is covered
-sum(q2_df.chosen2) # 1361 consumers don't purchase
+# ╔═╡ 4d6039df-91fe-40b4-9481-ace40a0e1e61
+# check that market shares add to 100
+sum(summary.market_share1)
 
-# ╔═╡ 93769b56-ee79-402c-a939-e7606975ca6e
-# Calculate consumer surplus
-begin
-	transform!(summary, [:u_given_purchase_mean] => cs => :surplus1)
-	transform!(summary, [:new_u_given_purchase_mean, :α_mean] => cs => :surplus2)
-end
+# ╔═╡ 687bd8e4-45c5-4cd9-909a-22a18f12c918
+sum(summary.market_share2) #checks out
 
-# ╔═╡ 0a7b2d7c-c8bc-4e4a-9a3b-96154f8d2030
-# Plot α
+# ╔═╡ 27480f11-e7c1-470b-8bb2-f0f30b406f2a
+md"""
+But some consumers under scenario 2 are not purchasing any good!
+
+Let's see how many:
+"""
+
+# ╔═╡ 10fa4fcb-ce99-47cb-8cc9-164e39f30563
+sum(summary.chosen2_sum)
+
+# ╔═╡ d7c1ab26-1ba9-41b0-9a15-438bd5b6a568
 begin
 	histogram(q2_df.α, xaxis = "α", label = "Simulated α", normalize = true)
 	# Fit α to a Log Normal Distribution
 	fitted_α = fit(LogNormal, q2_df.α)
 	distr_α = Distributions.params(fitted_α)
-	plot!(LogNormal(distr_α[1], distr_α[2]), label = "True Log Normal Density")
+	plot!(LogNormal(distr_α[1], distr_α[2]), label = "True Log Normal Density", normalize = true, fill = true, alpha = 0.5)
 end
 
-# ╔═╡ 259a8f97-4a17-466e-8b89-49dcb675e086
+# ╔═╡ ae51fc4d-e866-4d17-b799-916b65d35b92
+md"What happens if we assume that utility is normally distributed?"
 
-
+# ╔═╡ 1f9eed48-c129-4761-bc0d-1228d2d357cf
 begin
-	fitted_new_u_given_purchase = fit(TruncatedNormal, q2_df.new_u_given_purchase)
+	fitted_new_u_given_purchase = fit(Normal, q2_df_purchased.new_u_given_purchase)
 	distr_new_u_given_purchase = Distributions.params(fitted_new_u_given_purchase)
-	plot(Normal(distr_new_u_given_purchase[1], distr_new_u_given_purchase[2]), label = "U | Purchase ~ N(μ, σ²))")
+
+	fitted_u_given_purchase = fit(Normal, df_purchased.u_given_purchase)
+	distr_u_given_purchase = Distributions.params(fitted_u_given_purchase)
+	
+	plot(Normal(distr_new_u_given_purchase[1], distr_new_u_given_purchase[2]), label = "U | α ~ LogNormal", fill = true, alpha = 0.5)
+	plot!(Normal(distr_u_given_purchase[1], distr_u_given_purchase[2]), label = "U | α = 1", fill = true, alpha = 0.5)
 end
 
+# ╔═╡ 04ac0744-57cf-46c7-81b4-b205d9fdd593
+md"""
+The estimated choice probabilities are the same as the aggregate market shares
 
-# ╔═╡ 54e750ad-46ee-439c-99b7-928a2c466a69
+Let's take a look:
+"""
+
+# ╔═╡ e4a3299c-9c2e-40fc-a116-a62e6856ff40
+begin
+	plot(summary.j, summary.market_share2, label = "α ~ LogNormal", legend = :topleft)
+	plot!(summary.j, summary.market_share1, label = "α = 1")
+end
+
+# ╔═╡ c01df32a-b39a-4989-bc16-91724ffa1cc9
+begin
+	plot(summary.α_mean, summary.new_u_given_purchase_mean, seriestype = :scatter, ylims = (0, maximum(summary.new_u_given_purchase_mean) + 2), label = "utility | purchase")
+
+	xlabel!("α")
+	ylabel!("Utility | Purchase")
+end
+
+# ╔═╡ 625a3680-2ef1-4f63-b151-a949b5c00b74
+md"""
+***
+Now let's look at question 3:
+"""
+
+# ╔═╡ 2ec78271-81b1-439d-abb8-b586c83a806f
 # Question 3
 q3_df = DataFrame(
     i = repeat(1:I, 1), 
     j = repeat([9], I),
 	ϵ = rand(GeneralizedExtremeValue(0,1,0), 10000),
 	chosen = repeat([0.0], 10000),
-	α = rand(LogNormal(0.3, sqrt(0.1)),10000),
+	α = unique(q2_df, α).α,
 	x = repeat([3.0], 10000),
 	ξ = repeat([8.0], 10000),
 	p = repeat([10.0], 10000),
 	new_u = repeat([0.0], 10000)
 )
 
-# ╔═╡ cf5a1e0d-09f8-4572-9c53-6d111cc092f0
+# ╔═╡ 807778f6-49c1-43ac-982a-06e1d67fc433
+# Calculate utility
 for i in 1:10000
-    q3_df[i, "new_u"] = β * q2_df[i, "x"] - q2_df[i, "α"] * q2_df[i, "p"] + q2_df[i, "ξ"] + q2_df[i, "ϵ"]
+    q3_df[i, "new_u"] = β * q3_df[i, "x"] - q3_df[i, "α"] * q3_df[i, "p"] + q3_df[i, "ξ"] + q3_df[i, "ϵ"]
 end
 
-# ╔═╡ b4f828b1-ca6c-4696-b598-337ed7ddfde2
-describe(q3_df)
+# ╔═╡ 40ce5598-c400-4815-a521-dfb10c45acc8
+names(q3_df)
 
-# ╔═╡ a4a92634-b012-4806-8346-4f68c2b50117
-# Group by individual calculate maximumⱼ(uᵢⱼ)
-transform!(groupby(q3_df, :i), :new_u => maximum => :new_u_maximum)
+# ╔═╡ bbf5635e-f283-4f73-b72d-fe11f452a9ec
+names(q2_df)
 
-# ╔═╡ a977c832-bebd-44aa-a866-f880d7559ed1
-# Transform q3_df
-combine(
-	groupby(
-		leftjoin(df,
-				select(q2_df, :i, :j, :chosen2, :α, :new_u, :new_u_maximum), on = [:i, :j]), :j), 
-	:chosen1 => sum, :chosen2 => sum, :α => mean, :u => mean, :u_maximum => mean, :new_u => mean, :new_u_maximum => mean)
+# ╔═╡ 5d40fc26-aa5f-4aeb-b681-2c13f0cb2a0d
+q4_df = append!(
+	q3_df,
+	select(
+		rename(q2_df, :chosen2 => :chosen), 
+		Not([:new_u_maximum, :new_u_given_purchase])
+	)
+)
 
-# ╔═╡ 8b3d9cb5-221f-4381-b489-92fe4f4ae588
-rename!(q2_df, :chosen2 => :chosen)
+# ╔═╡ 32f1cb93-f10f-4926-8406-6f9aa28a569f
+describe(q4_df)
 
-# ╔═╡ 9ee6af27-fac7-4115-84e2-f2992027e989
-q3_df
+# ╔═╡ 16187462-3f7f-4d08-b9fa-4643e8c1074c
+# Group by individual, calculate maximumⱼ(uᵢⱼ)
+transform!(groupby(q4_df, :i), :new_u => maximum => :new_u_maximum)
 
-# ╔═╡ f4d97c3d-c187-479d-b2e9-3894d748a07a
-q2_q3_df = append!(q2_df, q3_df)
-
-# ╔═╡ baed35fb-d4b8-4daf-b4e8-adc30225e241
-describe(q2_q3_df)
-
-# ╔═╡ 0e34727e-d615-4750-b598-e9f99c5de92c
-# set chosen 
-for i in 1:90000
-    q2_q3_df[i,"chosen"] = indicator(q2_q3_df[i,"new_u"], q2_q3_df[i,"new_u_maximum"])
+# ╔═╡ 41c5a94b-5f4c-4fb4-ad2a-fc2ed0d7580a
+# rename!(q2_df, :chosen => :chosen2)
+for i in 1:100000
+	q4_df[i,"chosen"] = indicator(q4_df[i,"new_u"], q4_df[i,"new_u_maximum"])
 end
 
-# ╔═╡ 195766e9-f851-462e-86f9-ec6d6a7cd5a4
-freqtable(q2_q3_df, :chosen, :j)
+# ╔═╡ 623b1ac9-28fe-4121-a5f1-23dc303454e5
+transform!(q4_df, [:chosen, :new_u] => ((x,y) -> x .* y) => :new_u_given_purchase)
+
+# ╔═╡ aea29755-d83a-41f9-9cc7-c463d4bf011f
+q4_df_purchased = filter(row -> row.chosen ==1.0, q4_df)
+
+# ╔═╡ fce2c865-3a3b-419c-a4bc-cdcb1e76299d
+freqtable(q4_df, :chosen, :j)
+
+# ╔═╡ d43d88ba-c16f-4be6-aca5-babd92917480
+q4_df_summary = combine(groupby(q4_df_purchased, :j), :chosen => sum, :α => mean, :new_u_given_purchase => mean)
+
+# ╔═╡ c9173715-88c2-4ed3-ab0e-f4c7091d58cd
+transform!(q4_df_summary, :chosen_sum => (x -> 100x / sum(x)) => :market_share)
+
+# ╔═╡ ee0ccd8e-bf3c-4993-8d97-6c5b0ed10422
+md"Now have to do the same steps to combine the new data with the original df"
+
+# ╔═╡ 799493e6-6190-49d6-83a2-975d5b042d63
+# add α column to original df
+df[:,"α"] = repeat([1.0], 90000)
+
+# ╔═╡ 2d5fec2b-f4b8-4dbf-9ac5-de4416678170
+names(df)
+
+# ╔═╡ f1baa106-9524-426d-9afe-e31375493bb9
+q5_df = append!(
+	(DataFrame(
+    i = repeat(1:I, 1), 
+    j = repeat([9], I),
+	ϵ = rand(GeneralizedExtremeValue(0,1,0), 10000),
+	chosen = repeat([0.0], 10000),
+	α = repeat([1.0], 10000),
+	x = repeat([3.0], 10000),
+	ξ = repeat([8.0], 10000),
+	p = repeat([10.0], 10000),
+	u = repeat([0.0], 10000)
+)),
+	select(
+		rename(df, :chosen1 => :chosen), 
+		Not([:u_given_purchase, :u_maximum])
+	)
+)
+
+# ╔═╡ 6667d7ca-aebe-4a76-96c9-be4ded0872e5
+for i in 1:100000
+    q5_df[i, "u"] = β * q5_df[i, "x"] - q5_df[i, "α"] * q5_df[i, "p"] + q5_df[i, "ξ"] + q5_df[i, "ϵ"]
+end
+
+# ╔═╡ cdbdfdd6-8d37-4621-82d8-5f2389722045
+# Group by individual, calculate maximumⱼ(uᵢⱼ)
+transform!(groupby(q5_df, :i), :u => maximum => :u_maximum)
+
+# ╔═╡ 7957c107-d1a9-479e-ae2a-5e1c208ab14c
+# rename!(q5_df, :chosen => :chosen2)
+for i in 1:100000
+	q5_df[i,"chosen"] = indicator(q5_df[i,"u"], q5_df[i,"u_maximum"])
+end
+
+# ╔═╡ 89a5c551-b5de-4784-a7fe-e534b9372073
+transform!(q5_df, [:chosen, :u] => ((x,y) -> x .* y) => :u_given_purchase)
+
+# ╔═╡ 2c491612-bc63-4ca8-bfbe-a628e0a78b8f
+q5_df_summary = combine(groupby(filter(row -> row.chosen ==1.0, q5_df), :j), :chosen => sum, :α => mean, :u_given_purchase => mean, :p => mean)
+
+# ╔═╡ 847226a5-c264-4a1c-a767-78d007b94934
+transform!(q5_df_summary, :chosen_sum => (x -> 100x / sum(x)) => :market_share)
+
+# ╔═╡ f4efcbe1-180e-4fa6-813e-6b0fdf0acf0a
+md"""
+
+It looks like CS gain is slightly higher under the first model with α = 1
+"""
+
+# ╔═╡ 9ae79f5b-7c09-49a4-b480-9738c044eb96
+wellfare_gain_cons = sum(q5_df_summary.chosen_sum .* q5_df_summary.u_given_purchase_mean ./ q5_df_summary.α_mean) - sum(df_summary.chosen1_sum .* df_summary.u_given_purchase_mean)
+
+# ╔═╡ 0c18d990-5406-4099-96ed-42da12d29680
+wellfare_gain_uncertainty = sum(q4_df_summary.chosen_sum .* q4_df_summary.new_u_given_purchase_mean ./ q4_df_summary.α_mean) - sum(q2_df_summary.chosen2_sum .* q2_df_summary.new_u_given_purchase_mean ./ q2_df_summary.α_mean)
+
+# ╔═╡ 4bc4f6a8-c72e-4b18-b97d-355ee2b082f6
+md"Time to look at some graphs"
+
+# ╔═╡ 847917f8-2684-4315-8575-9736d43c39e3
+begin
+	plot(legend = :left)
+	plot!(q5_df_summary.j, q5_df_summary.market_share, label = "J = 9, α = 1", lw = 3, la = 0.5)
+	plot!(df_summary.j, summary.market_share1, lw = 3, ls = :dash, la = 0.5, label = "J = 8, α = 1")
+	plot!(q4_df_summary.j, q4_df_summary.market_share, lw = 3, la = 0.6, label = "J = 9, α 
+ ~ LogNormal")
+	plot!(summary.j, summary.market_share2, lw = 3, ls = :dash, la = 0.5, label = "J = 8, α ~ LogNormal")
+	xlabel!("J")
+	ylabel!("Market Share")
+end
+
+# ╔═╡ c2e66fe8-0b0c-4617-9a98-9908c9fcfe42
+begin
+	plot(legend = :left)
+	plot!(q5_df_summary.j, cumsum(q5_df_summary.chosen_sum), label = "J = 9, α = 1", lw = 4, la = 0.5)
+	plot!(df_summary.j, cumsum(summary.chosen1_sum), ls = :dash, lw = 4, label = "J = 8, α = 1")
+	plot!(q4_df_summary.j, cumsum(q4_df_summary.chosen_sum), lw = 4, la = 0.5, label = "J = 9, α 
+ ~ LogNormal")
+	plot!(summary.j, cumsum(summary.chosen2_sum), ls = :dash, lw = 4, label = "J = 8, α ~ LogNormal")
+	xlabel!("J")
+	ylabel!("Cumulative Sum of Number of Purchases")
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -304,6 +438,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FreqTables = "da1fdf0e-e0ff-5433-a45f-9bb5ff651cb1"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
@@ -313,6 +448,7 @@ VegaLite = "112f6efa-9a02-5b7d-90c0-432ed331239a"
 DataFrames = "~1.2.2"
 Distributions = "~0.25.31"
 FreqTables = "~0.4.5"
+Plots = "~1.23.6"
 Pluto = "~0.17.1"
 StatsBase = "~0.33.12"
 StatsPlots = "~0.14.28"
@@ -577,9 +713,9 @@ version = "0.8.3"
 
 [[FilePathsBase]]
 deps = ["Dates", "Mmap", "Printf", "Test", "UUIDs"]
-git-tree-sha1 = "79a9cbc545abe411a5ea34c195dd6d5722fe3e7d"
+git-tree-sha1 = "618835ab81e4a40acf215c98768978d82abc5d97"
 uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
-version = "0.9.15"
+version = "0.9.16"
 
 [[FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -1540,44 +1676,74 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╠═87e3f1c2-48a1-11ec-3be6-114d0f4946e1
-# ╠═8d01f0f1-3f0d-4929-bf2a-09ebe91b2365
-# ╠═093ce7d5-90b5-4318-86c1-9d674477959a
-# ╠═0d504bb7-eeaf-4c3e-a18b-467987631fda
-# ╠═8925eaed-09e0-4c66-851f-f9aaf7a533f7
-# ╠═79b4b8bd-9ca8-4186-a311-b204448d7372
-# ╠═37a6df4b-c530-46f1-937c-a3c0f084f2e8
-# ╠═8e34833b-d687-48e3-858a-fa2308b03b00
-# ╠═2937fee4-ab4e-4aed-ab1f-ecb99b0d6f0b
-# ╠═eead4a00-cc6f-444a-a3fc-39c815e2bb0c
-# ╠═9ff13b99-a2e4-4268-8c15-e2433efd1d74
-# ╠═fe3c8f3a-a3e2-4c1f-b9dd-8bf75ac098c6
-# ╠═07c2488e-ae83-445c-b551-c71825a8ad59
-# ╠═a449463b-7409-4ec1-88f8-154fe832d96a
-# ╠═99915d06-79d6-4e8b-b6de-45591c2a46d9
-# ╠═dcbdcfd1-c4fe-4946-841c-9f0f4f3b0533
-# ╠═8baf00c1-d63a-462d-99e7-ffd4c5543d01
-# ╠═a6230a1a-66de-46ba-97aa-a7e1f1e04349
-# ╠═f297fe40-1436-4f7f-baa2-05ba54bca9f3
-# ╠═94e76422-7bd5-461d-8d9d-319313d6625e
-# ╠═baecfdc3-9432-4a96-a023-5afbb7b9eff9
-# ╠═abb0e61f-b9b8-4169-88cb-4889c5615309
-# ╠═ef1e40b4-f992-4933-9275-94cb5fb7ac58
-# ╠═79fff197-03c5-42f5-8f29-8877a0de569a
-# ╠═24d3ebce-5075-49e2-87fa-a3b562c7a63d
-# ╠═93769b56-ee79-402c-a939-e7606975ca6e
-# ╠═0a7b2d7c-c8bc-4e4a-9a3b-96154f8d2030
-# ╠═259a8f97-4a17-466e-8b89-49dcb675e086
-# ╠═54e750ad-46ee-439c-99b7-928a2c466a69
-# ╠═cf5a1e0d-09f8-4572-9c53-6d111cc092f0
-# ╠═b4f828b1-ca6c-4696-b598-337ed7ddfde2
-# ╠═a4a92634-b012-4806-8346-4f68c2b50117
-# ╠═a977c832-bebd-44aa-a866-f880d7559ed1
-# ╠═8b3d9cb5-221f-4381-b489-92fe4f4ae588
-# ╠═9ee6af27-fac7-4115-84e2-f2992027e989
-# ╠═f4d97c3d-c187-479d-b2e9-3894d748a07a
-# ╠═baed35fb-d4b8-4daf-b4e8-adc30225e241
-# ╠═0e34727e-d615-4750-b598-e9f99c5de92c
-# ╠═195766e9-f851-462e-86f9-ec6d6a7cd5a4
+# ╠═ba28b0cc-b900-4bbb-8d40-6f628779bcb9
+# ╟─e80226ba-8932-47a0-b5bc-fec9a2e3e482
+# ╠═11280580-0b32-4b1d-9c29-814004a608e6
+# ╟─1a26ca12-8e66-47d0-8b53-e404a4f91762
+# ╟─f917ad47-f5e6-43a8-be02-a7fa2433d4f0
+# ╟─ca6f68da-cd56-43b8-b1a7-7006053cecf8
+# ╠═fdb1cecb-36e1-410e-9c0f-4c3211d384eb
+# ╠═f0e318ee-e814-45cb-8bb7-93eb3a673b7e
+# ╠═90f106bc-4e36-4e9e-9aa2-43aff3737ddf
+# ╠═154f213b-c3e2-4578-88b0-0c5a6ced2310
+# ╟─4aa87e62-a845-42c0-92f9-4bbd69c1fda5
+# ╠═153ac234-3659-45b7-9ebc-a44d4a51be6b
+# ╠═ce64f43b-05a0-4818-bcb6-0b1c14127847
+# ╠═e2fd7649-857b-4062-bbf9-977c1fe8a0b9
+# ╠═d73b870a-7c83-46bd-a980-2b83fdfd4692
+# ╠═51527d78-c1d7-4923-97ea-9bedbe147ee4
+# ╠═35aad317-8a50-4d8a-8d3c-b76e94bfce6d
+# ╠═4d92cfed-6d18-440a-b141-dc35baffa5c5
+# ╟─2867033b-4fa5-4a98-a4d0-f87e21c12fa7
+# ╠═53b5ed1d-4fd2-4589-802c-b137b20d9aba
+# ╠═621933bd-651e-44b7-99e5-bf1ac197261c
+# ╠═04d781cd-7182-4142-ae9c-f20c720dfc00
+# ╠═7911e666-77a0-40ac-bb20-4a74b90e8905
+# ╠═939a1ce2-262b-48e5-be5f-b94867ff3d39
+# ╠═e0ae73b2-edf5-4ef1-afad-e6711ebac405
+# ╠═eda75465-c037-4590-a03e-8166b23e6e3c
+# ╠═34264042-3536-45cb-a5cd-cce9df948590
+# ╠═c54a5928-04c9-4c72-afc5-b29250b59ff9
+# ╠═939f556f-c2ca-4caf-8da0-8948d265e270
+# ╠═4d6039df-91fe-40b4-9481-ace40a0e1e61
+# ╠═687bd8e4-45c5-4cd9-909a-22a18f12c918
+# ╟─27480f11-e7c1-470b-8bb2-f0f30b406f2a
+# ╠═10fa4fcb-ce99-47cb-8cc9-164e39f30563
+# ╠═d7c1ab26-1ba9-41b0-9a15-438bd5b6a568
+# ╟─ae51fc4d-e866-4d17-b799-916b65d35b92
+# ╠═1f9eed48-c129-4761-bc0d-1228d2d357cf
+# ╟─04ac0744-57cf-46c7-81b4-b205d9fdd593
+# ╠═e4a3299c-9c2e-40fc-a116-a62e6856ff40
+# ╠═c01df32a-b39a-4989-bc16-91724ffa1cc9
+# ╟─625a3680-2ef1-4f63-b151-a949b5c00b74
+# ╠═2ec78271-81b1-439d-abb8-b586c83a806f
+# ╠═807778f6-49c1-43ac-982a-06e1d67fc433
+# ╠═40ce5598-c400-4815-a521-dfb10c45acc8
+# ╠═bbf5635e-f283-4f73-b72d-fe11f452a9ec
+# ╠═5d40fc26-aa5f-4aeb-b681-2c13f0cb2a0d
+# ╠═32f1cb93-f10f-4926-8406-6f9aa28a569f
+# ╠═16187462-3f7f-4d08-b9fa-4643e8c1074c
+# ╠═41c5a94b-5f4c-4fb4-ad2a-fc2ed0d7580a
+# ╠═623b1ac9-28fe-4121-a5f1-23dc303454e5
+# ╠═aea29755-d83a-41f9-9cc7-c463d4bf011f
+# ╠═fce2c865-3a3b-419c-a4bc-cdcb1e76299d
+# ╠═d43d88ba-c16f-4be6-aca5-babd92917480
+# ╠═c9173715-88c2-4ed3-ab0e-f4c7091d58cd
+# ╟─ee0ccd8e-bf3c-4993-8d97-6c5b0ed10422
+# ╠═799493e6-6190-49d6-83a2-975d5b042d63
+# ╠═2d5fec2b-f4b8-4dbf-9ac5-de4416678170
+# ╠═f1baa106-9524-426d-9afe-e31375493bb9
+# ╠═6667d7ca-aebe-4a76-96c9-be4ded0872e5
+# ╠═cdbdfdd6-8d37-4621-82d8-5f2389722045
+# ╠═7957c107-d1a9-479e-ae2a-5e1c208ab14c
+# ╠═89a5c551-b5de-4784-a7fe-e534b9372073
+# ╠═2c491612-bc63-4ca8-bfbe-a628e0a78b8f
+# ╠═847226a5-c264-4a1c-a767-78d007b94934
+# ╟─f4efcbe1-180e-4fa6-813e-6b0fdf0acf0a
+# ╠═9ae79f5b-7c09-49a4-b480-9738c044eb96
+# ╠═0c18d990-5406-4099-96ed-42da12d29680
+# ╟─4bc4f6a8-c72e-4b18-b97d-355ee2b082f6
+# ╠═847917f8-2684-4315-8575-9736d43c39e3
+# ╠═c2e66fe8-0b0c-4617-9a98-9908c9fcfe42
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
