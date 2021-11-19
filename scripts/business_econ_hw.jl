@@ -1,4 +1,4 @@
-using Distributions, StatsPlots, DataFrames, StatsBase, FreqTables, VegaLite
+using Distributions, StatsPlots, DataFrames, StatsBase, FreqTables, VegaLite, Pluto
 
 I = 10000
 J = 8
@@ -30,17 +30,17 @@ function value(j)
 end
 
 
-
+# Transform DF by adding price, x, and ξ
 transform!(df, :j => price => :p)
 transform!(df, :j => xi => :ξ)
 transform!(df, :j => value => :x)
 
-
+# Epsilon is col 3
 for i in 1:90000
     df[i,3] = rand(GeneralizedExtremeValue(0,1,0))
 end
 
-
+# u is col 4
 for i in 1:90000
     df[i,4] = β * df[i,8] - α * df[i,6] + df[i,7] + df[i,3]
 end
@@ -49,16 +49,8 @@ end
 describe(df)
 
 df
-# i need to use these two variables, u and u_maximum; filter where uᵢ is ≥ maxⱼ(uᵢⱼ)
-# in the data frame where I group by individual
-choices = filter!([:u, :u_maximum] => (u, u_maximum) -> u ≥ u_maximum, 
-    select(groupby(df, :i), :u => maximum, :) )
 
- 
-
-sort(choices, order(:i))
-
-function stupid_indicator(x,y)
+function indicator(x,y)
     if x .≥ y
         dummy = 1
     else 
@@ -74,7 +66,7 @@ end
 transform!(groupby(df, :i), :u => maximum => :u_maximum)
 
 for i in 1:90000
-    df[i,5] = stupid_indicator(df[i,4], df[i,9])
+    df[i,5] = indicator(df[i,4], df[i,9])
 end
 
 # What do most people choose?
@@ -110,20 +102,20 @@ end
 transform!(groupby(q2_df, :i), :new_u => maximum => :new_u_maximum)
 
 for i in 1:90000
-    q2_df[i,4] = stupid_indicator(q2_df[i,9], q2_df[i,10])
+    q2_df[i,4] = indicator(q2_df[i,9], q2_df[i,10])
 end
-
 
 println("Freq Table with α = 1")
 freqtable(df, :chosen, :j)
 
-println("Freq Table with uncertain α")
+println("Freq Table with α ~ LogNormal(0.3, sqrt(0.10)")
 freqtable(q2_df, :chosen, :j)
 
 rename!(df, :chosen => :chosen1)
 rename!(q2_df, :chosen => :chosen2)
 
-
+q2_df[!, :α] = convert.(Float64, q2_df[:, :α])
+q2_df[!, :new_u] = convert.(Float64, q2_df[:, :new_u])
 # Q2 
 
 # Combine df and q2_df, group by j and find the total number of customers who purchase
@@ -138,7 +130,7 @@ transform!(combined_data, :chosen2_sum => (x -> x / 100) => :market_share2)
 # double checking that market is covered
 freqtable(q2_df, :chosen2, :new_u)
 
-sort(q2_df, order(:new_u))
+sort(q2_df, order(:new_u_max))
 
 
 # Q3: Consumer Surplus
@@ -153,12 +145,23 @@ end
 transform!(combined_data, [:u_maximum_mean] => cs => :surplus1)
 transform!(combined_data, [:new_u_maximum_mean, :α_mean] => cs => :surplus2)
 
-histogram(q2_df.α, xaxis = "α")
+histogram(q2_df.α, xaxis = "α", label = "Simulated α", normalize = true)
+# Fit α to a Log Normal Distribution
+fitted_α = fit(LogNormal, q2_df.α)
+distr_α = Distributions.params(fitted_α)
+plot!(LogNormal(distr_α[1], distr_α[2]), label = "True Log Normal Density")
 
-histogram(q2_df.new_u, xaxis = ("Simulated Utility"), xlims = (-20,20)) 
+
+# Do the same for utility
+fitted_new_u_max = fit(Normal, q2_df.new_u_maximum)
+distr_new_u_max = Distributions.params(fitted_new_u_max)
 
 
-histogram(q2_df.new_u_maximum, xaxis = ("Simulated Utility (Purchase = Yes)")) 
+
+histogram(q2_df.new_u, xaxis = ("Simulated Utility"), xlims = (-20,20), label = "All Values") 
 
 
-plot(q2_df.α, q2_df.new_u_maximum, yaxis = ("Simulated Utility"), xaxis = "α")
+histogram!(q2_df.new_u_maximum, label = "Of Purchases Decisions") 
+ylabel!("Count")
+
+
