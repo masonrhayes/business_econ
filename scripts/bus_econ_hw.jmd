@@ -1,0 +1,105 @@
+---
+title : Business Economics HW
+author : Mason Ross Hayes
+date: `j import Dates; Dates.Date(Dates.now())`
+weave_options:
+  out_path: submissions
+  doctype: md2pdf
+---
+
+```julia, echo = false, results = "hidden"
+using Dates, Random
+Random.seed!(3)
+include("bus_econ_hw.jl")
+```
+# Question 1
+
+Assuming that individual indirect utility is given by:
+
+$u_{ij} = \beta x_j - \alpha p_j + \xi_j + \varepsilon_{ij}$
+
+and that $\varepsilon_{ij} \sim \text{GeneralizedExtremeValue}(0,1,0)$ , I simulate a market with $N = 10000$ individuals and $J+1$ products.
+
+Given that $\alpha = \beta = 1$ , we have the following purchase decisions. Note that in this first case (Case 1), the market is covered:
+
+```julia, echo = false
+
+pretty_table(select(summary, [:j, :chosen1_sum, :market_share1, :cum_chosen1]))
+
+```
+
+The share of the individual choices can be interpreted in two equivalent ways: the share of the market captured by each product, or the probability of purchasing a given product *j*. 
+
+Let $P_i(j)$ indicate that individual *i* choses good *j*. Since we assume that the distribution of $\varepsilon_{ij}$ conditional on *i* is the same as its unconditional distribution:
+
+$P_i(0) = P(0) = 0.41\%$ and so on, as in the table above.
+
+# Question 2
+
+Now we assume that $\alpha_i \sim LogNormal(\mu = 0.3, \sigma = \sqrt{0.1})$ . I again use 10000 individuals to simulate this market. 
+
+```julia, echo = false
+
+α_histogram
+```
+
+
+In thise case (Case 2), the market is no longer covered: some `j 10000 - sum(summary.chosen2_sum)` people choose not to purchase any good.
+
+The following table shows the market share of each good *j*, which can be interpreted as the probability that an individual purchases good *j* conditional on having chosen to purchase any good.
+
+
+```julia, echo = false
+
+pretty_table(select(summary, [:j, :chosen2_sum, :market_share2, :cum_chosen2]))
+
+```
+
+The conditional distributions of utility are plotted below:
+
+```julia, echo = false
+simulated_utility_lnormal
+
+```
+
+Market shares under Case 1 and Case 2 are shown below:
+
+```julia, echo = false
+market_share_ln_vs_1
+```
+
+We may also be interested in how utility varies with the value of $\alpha$. Since $\alpha$ is is the marginal utility of income, we would expect that a *higher* $\alpha$ would be associated with a *lower* utility; a person with a greater marginal utility of income would have fewer profitable options, and would be more sensitive to prices.
+
+```julia, echo = false
+utility_vs_α
+```
+
+The suggests that this may be the case.
+
+# Question 3
+
+In this question, we assume that there is a good, the utility of which is independent of *j*; its utility depends only on the marginal utility of income $\alpha$ and on the random shock $\varepsilon_{ij}$.
+
+Under the given conditions, we find:
+
+```julia, echo = false
+
+pretty_table(select(q4_df_summary, [:j, :chosen_sum, :market_share, :cum_chosen]))
+```
+
+Under the mixed logit (Case 2), the new good has a market share of `j round(q4_df_summary.market_share[10], digits = 3)`%, with only `j round(q4_df_summary.chosen_sum[10], digits = 3)` people choosing to purchase it. Those who purchase have a mean $\alpha$ equal to `j round(q4_df_summary.α_mean[10], digits = 3)`.
+
+Under the standard logit from Case 1, the new good has a market share of `j round(q5_df_summary.market_share[10], digits = 3)`%, with only `j round(q5_df_summary.chosen_sum[10], digits = 3)` people choosing to purchase it. 
+
+# Question 4
+
+The welfare gains brought by this new good are negligible. Under Case 2, the welfare gain is `j round(wellfare_gain_uncertainty_percent, digits = 3)`%, and under Case 1 it is `j round(wellfare_gain_cons_percent, digits = 3)`%.
+
+
+```julia, echo = false
+
+cumsum_purchases_plot
+
+```
+
+

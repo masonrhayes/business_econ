@@ -5,7 +5,7 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ ba28b0cc-b900-4bbb-8d40-6f628779bcb9
-using Pluto, Distributions, DataFrames, StatsBase, FreqTables, VegaLite, StatsPlots, Plots
+using Random, Pluto, Distributions, DataFrames, StatsBase, FreqTables, VegaLite, StatsPlots, Plots, PrettyTables
 
 # ╔═╡ e80226ba-8932-47a0-b5bc-fec9a2e3e482
 md"10000 individuals, J+1 = 9 products, set parameters"
@@ -91,8 +91,9 @@ end
 
 # ╔═╡ fdb1cecb-36e1-410e-9c0f-4c3211d384eb
 # utility
-for i in 1:90000
-	df[i,"u"] = β * df[i,"x"] - α * df[i,"p"] + df[i,"ξ"] + df[i,"ϵ"]
+begin
+	df.u = β .* df.x .- α .* df.p .+ df.ξ .+ df.ϵ
+	df
 end
 
 # ╔═╡ f0e318ee-e814-45cb-8bb7-93eb3a673b7e
@@ -101,9 +102,7 @@ transform!(groupby(df, :i), :u => maximum => :u_maximum)
 
 # ╔═╡ 90f106bc-4e36-4e9e-9aa2-43aff3737ddf
 # make chosen = 1 if uᵢⱼ = maximumⱼ(uᵢⱼ)
-for i in 1:90000
-    df[i,"chosen1"] = indicator(df[i,"u"], df[i,"u_maximum"])
-end
+df.chosen1 = df.u .== df.u_maximum .≥ 0
 
 # ╔═╡ 154f213b-c3e2-4578-88b0-0c5a6ced2310
 # How many consumers choose each good j?
@@ -134,9 +133,9 @@ q2_df = rename(select(leftjoin(df, params, on = [:i, :j]), Not([:u, :u_maximum])
 
 # ╔═╡ d73b870a-7c83-46bd-a980-2b83fdfd4692
 # Generate new_u
-
-for i in 1:90000
-    q2_df[i, "new_u"] = β * q2_df[i, "x"] - q2_df[i, "α"] * q2_df[i, "p"] + q2_df[i, "ξ"] + q2_df[i, "ϵ"]
+begin
+	q2_df.new_u = β .* q2_df.x .- q2_df.α .* q2_df.p .+ q2_df.ξ .+ q2_df.ϵ
+	q2_df
 end
 
 # ╔═╡ 51527d78-c1d7-4923-97ea-9bedbe147ee4
@@ -151,26 +150,17 @@ end
 transform!(groupby(q2_df, :i), :new_u => maximum => :new_u_maximum)
 
 # ╔═╡ 4d92cfed-6d18-440a-b141-dc35baffa5c5
-# rename!(q2_df, :chosen => :chosen2)
-for i in 1:90000
-	q2_df[i,"chosen2"] = indicator(q2_df[i,"new_u"], q2_df[i,"new_u_maximum"])
-end
+# create chosen2 for q2_df
+q2_df.chosen2 = q2_df.new_u .≥ q2_df.new_u_maximum .≥ 0
 
 # ╔═╡ 2867033b-4fa5-4a98-a4d0-f87e21c12fa7
 md"Let's compare the product choices"
 
 # ╔═╡ 53b5ed1d-4fd2-4589-802c-b137b20d9aba
-freqtable(df, :chosen1, :j)
+q1_choices = pretty_table(combine(groupby(filter(row -> row.chosen1 .== true, df), [:j]), nrow => :purchases))
 
 # ╔═╡ 621933bd-651e-44b7-99e5-bf1ac197261c
-freqtable(q2_df, :chosen2, :j)
-
-# ╔═╡ 04d781cd-7182-4142-ae9c-f20c720dfc00
-# Find utility conditional on purchase decision; 0 if no purchase, else u max
-begin
-	transform!(groupby(q2_df, :j), [:chosen2, :new_u] => cond_utility => :new_u_given_purchase)
-	transform!(groupby(df, :j), [:chosen1, :u] => cond_utility => :u_given_purchase)
-end
+q2_choices = pretty_table(combine(groupby(filter(row -> row.chosen2 .== true, q2_df), [:j]), nrow => :purchases))
 
 # ╔═╡ 7911e666-77a0-40ac-bb20-4a74b90e8905
 # Calculate utility: = 0 if no purchase, otherwise equals the utility conditonal on purchasing
@@ -182,15 +172,15 @@ transform!(df, [:chosen1, :u] => ((x,y) -> x .* y) => :u_given_purchase)
 # ╔═╡ e0ae73b2-edf5-4ef1-afad-e6711ebac405
 # Filter so that only rows where chosen ==1 
 begin
-df_purchased = filter(row -> row.chosen1 ==1.0, df)
-q2_df_purchased = filter(row -> row.chosen2 ==1.0, q2_df)
+df_purchased = filter(row -> row.chosen1 ==true, df)
+q2_df_purchased = filter(row -> row.chosen2 ==true, q2_df)
 end
 
 # ╔═╡ eda75465-c037-4590-a03e-8166b23e6e3c
-histogram(q2_df_purchased.new_u_given_purchase, label = "αᵢ ~ LogNormal(0.3, √(0.1)", xlabel = "Simulated Utility, Conditional on Purchasing", normalize = true)
+simulated_utility_lnormal = histogram(q2_df_purchased.new_u_given_purchase, label = "αᵢ ~ LogNormal(0.3, √(0.1)", xlabel = "Simulated Utility, Conditional on Purchasing", normalize = true)
 
 # ╔═╡ 34264042-3536-45cb-a5cd-cce9df948590
-histogram!(df_purchased.u_given_purchase, label = "α = 1", normalize = true, fillalpha = 0.8)
+simulated_utility_both = histogram!(df_purchased.u_given_purchase, label = "α = 1", normalize = true, fillalpha = 0.8)
 
 # ╔═╡ c54a5928-04c9-4c72-afc5-b29250b59ff9
 # Combine df and q2_df, group by j and find the total number of customers who purchase
@@ -207,6 +197,10 @@ end
 begin
 	transform!(summary, :chosen1_sum => (x -> 100x / sum(x)) => :market_share1)
 	transform!(summary, :chosen2_sum => (x -> 100x / sum(x)) => :market_share2)
+	summary.cum_market_share1 = cumsum(summary.market_share1)
+	summary.cum_market_share2 = cumsum(summary.market_share2)
+	summary.cum_chosen1 = cumsum(summary.chosen1_sum)
+	summary.cum_chosen2 = cumsum(summary.chosen2_sum)
 end
 
 # ╔═╡ 4d6039df-91fe-40b4-9481-ace40a0e1e61
@@ -220,7 +214,7 @@ sum(summary.market_share2) #checks out
 md"""
 But some consumers under scenario 2 are not purchasing any good!
 
-Let's see how many:
+Let's see how many actually choose to purchase:
 """
 
 # ╔═╡ 10fa4fcb-ce99-47cb-8cc9-164e39f30563
@@ -228,7 +222,7 @@ sum(summary.chosen2_sum)
 
 # ╔═╡ d7c1ab26-1ba9-41b0-9a15-438bd5b6a568
 begin
-	histogram(q2_df.α, xaxis = "α", label = "Simulated α", normalize = true)
+	α_histogram = histogram(q2_df.α, xaxis = "α", label = "Simulated α", normalize = true)
 	# Fit α to a Log Normal Distribution
 	fitted_α = fit(LogNormal, q2_df.α)
 	distr_α = Distributions.params(fitted_α)
@@ -246,7 +240,7 @@ begin
 	fitted_u_given_purchase = fit(Normal, df_purchased.u_given_purchase)
 	distr_u_given_purchase = Distributions.params(fitted_u_given_purchase)
 	
-	plot(Normal(distr_new_u_given_purchase[1], distr_new_u_given_purchase[2]), label = "U | α ~ LogNormal", fill = true, alpha = 0.5)
+	utility_normal_plot = plot(Normal(distr_new_u_given_purchase[1], distr_new_u_given_purchase[2]), label = "U | α ~ LogNormal", fill = true, alpha = 0.5)
 	plot!(Normal(distr_u_given_purchase[1], distr_u_given_purchase[2]), label = "U | α = 1", fill = true, alpha = 0.5)
 end
 
@@ -259,13 +253,15 @@ Let's take a look:
 
 # ╔═╡ e4a3299c-9c2e-40fc-a116-a62e6856ff40
 begin
-	plot(summary.j, summary.market_share2, label = "α ~ LogNormal", legend = :topleft)
+	market_share_ln_vs_1= plot(summary.j, summary.market_share2, label = "α ~ LogNormal", legend = :topleft)
 	plot!(summary.j, summary.market_share1, label = "α = 1")
+	ylabel!("Market Share")
+	xlabel!("j")
 end
 
 # ╔═╡ c01df32a-b39a-4989-bc16-91724ffa1cc9
 begin
-	plot(summary.α_mean, summary.new_u_given_purchase_mean, seriestype = :scatter, ylims = (0, maximum(summary.new_u_given_purchase_mean) + 2), label = "utility | purchase")
+	utility_vs_α = plot(summary.α_mean, summary.new_u_given_purchase_mean, seriestype = :scatter, ylims = (0, maximum(summary.new_u_given_purchase_mean) + 2), label = "utility | purchase")
 
 	xlabel!("α")
 	ylabel!("Utility | Purchase")
@@ -283,7 +279,7 @@ q3_df = DataFrame(
     i = repeat(1:I, 1), 
     j = repeat([9], I),
 	ϵ = rand(GeneralizedExtremeValue(0,1,0), 10000),
-	chosen = repeat([0.0], 10000),
+	chosen = repeat([false], 10000),
 	α = unique(q2_df, α).α,
 	x = repeat([3.0], 10000),
 	ξ = repeat([8.0], 10000),
@@ -293,8 +289,9 @@ q3_df = DataFrame(
 
 # ╔═╡ 807778f6-49c1-43ac-982a-06e1d67fc433
 # Calculate utility
-for i in 1:10000
-    q3_df[i, "new_u"] = β * q3_df[i, "x"] - q3_df[i, "α"] * q3_df[i, "p"] + q3_df[i, "ξ"] + q3_df[i, "ϵ"]
+begin
+	q3_df.new_u = β .* q3_df.x .- q3_df.α .* q3_df.p .+ q3_df.ξ .+ q3_df.ϵ
+	q3_df
 end
 
 # ╔═╡ 40ce5598-c400-4815-a521-dfb10c45acc8
@@ -321,9 +318,7 @@ transform!(groupby(q4_df, :i), :new_u => maximum => :new_u_maximum)
 
 # ╔═╡ 41c5a94b-5f4c-4fb4-ad2a-fc2ed0d7580a
 # rename!(q2_df, :chosen => :chosen2)
-for i in 1:100000
-	q4_df[i,"chosen"] = indicator(q4_df[i,"new_u"], q4_df[i,"new_u_maximum"])
-end
+q4_df.chosen = q4_df.new_u .== q4_df.new_u_maximum .≥ 0
 
 # ╔═╡ 623b1ac9-28fe-4121-a5f1-23dc303454e5
 transform!(q4_df, [:chosen, :new_u] => ((x,y) -> x .* y) => :new_u_given_purchase)
@@ -338,7 +333,10 @@ freqtable(q4_df, :chosen, :j)
 q4_df_summary = combine(groupby(q4_df_purchased, :j), :chosen => sum, :α => mean, :new_u_given_purchase => mean)
 
 # ╔═╡ c9173715-88c2-4ed3-ab0e-f4c7091d58cd
-transform!(q4_df_summary, :chosen_sum => (x -> 100x / sum(x)) => :market_share)
+begin
+	transform!(q4_df_summary, :chosen_sum => (x -> 100x / sum(x)) => :market_share)
+	q4_df_summary.cum_chosen = cumsum(q4_df_summary.chosen_sum)
+end
 
 # ╔═╡ ee0ccd8e-bf3c-4993-8d97-6c5b0ed10422
 md"Now have to do the same steps to combine the new data with the original df"
@@ -370,9 +368,7 @@ q5_df = append!(
 )
 
 # ╔═╡ 6667d7ca-aebe-4a76-96c9-be4ded0872e5
-for i in 1:100000
-    q5_df[i, "u"] = β * q5_df[i, "x"] - q5_df[i, "α"] * q5_df[i, "p"] + q5_df[i, "ξ"] + q5_df[i, "ϵ"]
-end
+q5_df.u = β .* q5_df.x .- q5_df.α .* q5_df.p .+ q5_df.ξ .+ q5_df.ϵ
 
 # ╔═╡ cdbdfdd6-8d37-4621-82d8-5f2389722045
 # Group by individual, calculate maximumⱼ(uᵢⱼ)
@@ -380,37 +376,39 @@ transform!(groupby(q5_df, :i), :u => maximum => :u_maximum)
 
 # ╔═╡ 7957c107-d1a9-479e-ae2a-5e1c208ab14c
 # rename!(q5_df, :chosen => :chosen2)
-for i in 1:100000
-	q5_df[i,"chosen"] = indicator(q5_df[i,"u"], q5_df[i,"u_maximum"])
-end
+q5_df.chosen = q5_df.u .≥ q5_df.u_maximum .≥ 0
 
 # ╔═╡ 89a5c551-b5de-4784-a7fe-e534b9372073
 transform!(q5_df, [:chosen, :u] => ((x,y) -> x .* y) => :u_given_purchase)
 
 # ╔═╡ 2c491612-bc63-4ca8-bfbe-a628e0a78b8f
-q5_df_summary = combine(groupby(filter(row -> row.chosen ==1.0, q5_df), :j), :chosen => sum, :α => mean, :u_given_purchase => mean, :p => mean)
+begin
+	q5_df_summary = combine(groupby(filter(row -> row.chosen ==1.0, q5_df), :j), :chosen => sum, :α => mean, :u_given_purchase => mean, :p => mean)
+	q5_df_summary.cum_chosen = cumsum(q5_df_summary.chosen_sum)
+end
 
 # ╔═╡ 847226a5-c264-4a1c-a767-78d007b94934
 transform!(q5_df_summary, :chosen_sum => (x -> 100x / sum(x)) => :market_share)
 
 # ╔═╡ f4efcbe1-180e-4fa6-813e-6b0fdf0acf0a
 md"""
+It looks like CS gain is slightly higher under the first model with α = 1, but only because total welfare is higher in that scenario. 
 
-It looks like CS gain is slightly higher under the first model with α = 1
+The percentage change is actually higher on scenario two; however, the change is negligible:
 """
 
 # ╔═╡ 9ae79f5b-7c09-49a4-b480-9738c044eb96
-wellfare_gain_cons = sum(q5_df_summary.chosen_sum .* q5_df_summary.u_given_purchase_mean ./ q5_df_summary.α_mean) - sum(df_summary.chosen1_sum .* df_summary.u_given_purchase_mean)
+wellfare_gain_cons_percent = (sum(q5_df_summary.chosen_sum .* q5_df_summary.u_given_purchase_mean ./ q5_df_summary.α_mean) - sum(df_summary.chosen1_sum .* df_summary.u_given_purchase_mean))./sum(df_summary.chosen1_sum .* df_summary.u_given_purchase_mean).*100
 
 # ╔═╡ 0c18d990-5406-4099-96ed-42da12d29680
-wellfare_gain_uncertainty = sum(q4_df_summary.chosen_sum .* q4_df_summary.new_u_given_purchase_mean ./ q4_df_summary.α_mean) - sum(q2_df_summary.chosen2_sum .* q2_df_summary.new_u_given_purchase_mean ./ q2_df_summary.α_mean)
+wellfare_gain_uncertainty_percent = (sum(q4_df_summary.chosen_sum .* q4_df_summary.new_u_given_purchase_mean ./ q4_df_summary.α_mean) - sum(q2_df_summary.chosen2_sum .* q2_df_summary.new_u_given_purchase_mean ./ q2_df_summary.α_mean)) ./ sum(q2_df_summary.chosen2_sum .* q2_df_summary.new_u_given_purchase_mean ./ q2_df_summary.α_mean) .* 100
 
 # ╔═╡ 4bc4f6a8-c72e-4b18-b97d-355ee2b082f6
 md"Time to look at some graphs"
 
 # ╔═╡ 847917f8-2684-4315-8575-9736d43c39e3
 begin
-	plot(legend = :left)
+	market_share_plot = plot(legend = :left)
 	plot!(q5_df_summary.j, q5_df_summary.market_share, label = "J = 9, α = 1", lw = 3, la = 0.5)
 	plot!(df_summary.j, summary.market_share1, lw = 3, ls = :dash, la = 0.5, label = "J = 8, α = 1")
 	plot!(q4_df_summary.j, q4_df_summary.market_share, lw = 3, la = 0.6, label = "J = 9, α 
@@ -422,12 +420,11 @@ end
 
 # ╔═╡ c2e66fe8-0b0c-4617-9a98-9908c9fcfe42
 begin
-	plot(legend = :left)
-	plot!(q5_df_summary.j, cumsum(q5_df_summary.chosen_sum), label = "J = 9, α = 1", lw = 4, la = 0.5)
-	plot!(df_summary.j, cumsum(summary.chosen1_sum), ls = :dash, lw = 4, label = "J = 8, α = 1")
-	plot!(q4_df_summary.j, cumsum(q4_df_summary.chosen_sum), lw = 4, la = 0.5, label = "J = 9, α 
- ~ LogNormal")
-	plot!(summary.j, cumsum(summary.chosen2_sum), ls = :dash, lw = 4, label = "J = 8, α ~ LogNormal")
+	cumsum_purchases_plot = plot(legend = :left, legendfontsize = 9)
+	plot!(q5_df_summary.j, cumsum(q5_df_summary.chosen_sum), label = "J=9, α=1", lw = 4, la = 0.5)
+	plot!(df_summary.j, cumsum(summary.chosen1_sum), ls = :dash, lw = 4, label = "J=8, α=1")
+	plot!(q4_df_summary.j, cumsum(q4_df_summary.chosen_sum), lw = 4, la = 0.5, label = "J=9, α~LNorm")
+	plot!(summary.j, cumsum(summary.chosen2_sum), ls = :dash, lw = 4, label = "J=8, α ~ LNorm")
 	xlabel!("J")
 	ylabel!("Cumulative Sum of Number of Purchases")
 end
@@ -440,6 +437,7 @@ Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FreqTables = "da1fdf0e-e0ff-5433-a45f-9bb5ff651cb1"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
 VegaLite = "112f6efa-9a02-5b7d-90c0-432ed331239a"
@@ -450,6 +448,7 @@ Distributions = "~0.25.31"
 FreqTables = "~0.4.5"
 Plots = "~1.23.6"
 Pluto = "~0.17.1"
+PrettyTables = "~1.2.3"
 StatsBase = "~0.33.12"
 StatsPlots = "~0.14.28"
 VegaLite = "~2.6.0"
@@ -1679,7 +1678,7 @@ version = "0.9.1+5"
 # ╠═ba28b0cc-b900-4bbb-8d40-6f628779bcb9
 # ╟─e80226ba-8932-47a0-b5bc-fec9a2e3e482
 # ╠═11280580-0b32-4b1d-9c29-814004a608e6
-# ╟─1a26ca12-8e66-47d0-8b53-e404a4f91762
+# ╠═1a26ca12-8e66-47d0-8b53-e404a4f91762
 # ╟─f917ad47-f5e6-43a8-be02-a7fa2433d4f0
 # ╟─ca6f68da-cd56-43b8-b1a7-7006053cecf8
 # ╠═fdb1cecb-36e1-410e-9c0f-4c3211d384eb
@@ -1697,7 +1696,6 @@ version = "0.9.1+5"
 # ╟─2867033b-4fa5-4a98-a4d0-f87e21c12fa7
 # ╠═53b5ed1d-4fd2-4589-802c-b137b20d9aba
 # ╠═621933bd-651e-44b7-99e5-bf1ac197261c
-# ╠═04d781cd-7182-4142-ae9c-f20c720dfc00
 # ╠═7911e666-77a0-40ac-bb20-4a74b90e8905
 # ╠═939a1ce2-262b-48e5-be5f-b94867ff3d39
 # ╠═e0ae73b2-edf5-4ef1-afad-e6711ebac405
