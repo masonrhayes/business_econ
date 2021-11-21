@@ -6,7 +6,7 @@ Business Economics (M2S1 2021) at the [Toulouse School of Economics](https://tse
 
 [:computer: View the code](scripts/bus_econ_hw.jl)
 
-[:notebook: Open the notebook](submission/bus_econ_hw.jl.html)
+[:notebook: Open the notebook](https://masonrhayes.keybase.pub/projects/bus_econ_hw.jl.html)
 
 [:bar_chart: See the graphics](graphics/)
 
