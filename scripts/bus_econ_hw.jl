@@ -157,10 +157,16 @@ q2_df.chosen2 = q2_df.new_u .≥ q2_df.new_u_maximum .≥ 0
 md"Let's compare the product choices"
 
 # ╔═╡ 53b5ed1d-4fd2-4589-802c-b137b20d9aba
-q1_choices = pretty_table(combine(groupby(filter(row -> row.chosen1 .== true, df), [:j]), nrow => :purchases))
+begin
+	q1_choices = combine(groupby(filter(row -> row.chosen1 .== true, df), [:j]), nrow => :purchases)
+	pretty_table(q1_choices)
+end
 
 # ╔═╡ 621933bd-651e-44b7-99e5-bf1ac197261c
-q2_choices = pretty_table(combine(groupby(filter(row -> row.chosen2 .== true, q2_df), [:j]), nrow => :purchases))
+begin
+	q2_choices = combine(groupby(filter(row -> row.chosen2 .== true, q2_df), [:j]), nrow => :purchases)
+	pretty_table(q2_choices)
+end
 
 # ╔═╡ 7911e666-77a0-40ac-bb20-4a74b90e8905
 # Calculate utility: = 0 if no purchase, otherwise equals the utility conditonal on purchasing
@@ -201,6 +207,8 @@ begin
 	summary.cum_market_share2 = cumsum(summary.market_share2)
 	summary.cum_chosen1 = cumsum(summary.chosen1_sum)
 	summary.cum_chosen2 = cumsum(summary.chosen2_sum)
+	summary.market_share2 = round.(summary.market_share2, digits = 2)
+	summary.market_share1 = round.(summary.market_share1, digits = 2)
 end
 
 # ╔═╡ 4d6039df-91fe-40b4-9481-ace40a0e1e61
@@ -336,6 +344,7 @@ q4_df_summary = combine(groupby(q4_df_purchased, :j), :chosen => sum, :α => mea
 begin
 	transform!(q4_df_summary, :chosen_sum => (x -> 100x / sum(x)) => :market_share)
 	q4_df_summary.cum_chosen = cumsum(q4_df_summary.chosen_sum)
+	q4_df_summary.market_share = round.(q4_df_summary.market_share, digits = 2)
 end
 
 # ╔═╡ ee0ccd8e-bf3c-4993-8d97-6c5b0ed10422
@@ -408,14 +417,13 @@ md"Time to look at some graphs"
 
 # ╔═╡ 847917f8-2684-4315-8575-9736d43c39e3
 begin
-	market_share_plot = plot(legend = :left)
-	plot!(q5_df_summary.j, q5_df_summary.market_share, label = "J = 9, α = 1", lw = 3, la = 0.5)
-	plot!(df_summary.j, summary.market_share1, lw = 3, ls = :dash, la = 0.5, label = "J = 8, α = 1")
-	plot!(q4_df_summary.j, q4_df_summary.market_share, lw = 3, la = 0.6, label = "J = 9, α 
- ~ LogNormal")
-	plot!(summary.j, summary.market_share2, lw = 3, ls = :dash, la = 0.5, label = "J = 8, α ~ LogNormal")
+	market_share_plot = plot(legend = :top)
+	plot!(q5_df_summary.j, q5_df_summary.market_share,label = "J = 9, α = 1", lw = 3, la = 0.7)
+	plot!(df_summary.j, summary.market_share1, lw = 3, ls = :dash, la = 0.8, label = "J = 8, α = 1")
+	plot!(q4_df_summary.j, q4_df_summary.market_share, lw = 3, la = 0.6, label = "J=9, α~LNorm")
+	plot!(summary.j, summary.market_share2, lw = 3, ls = :dash, la = 0.8, label = "J=8, α~LNorm")
 	xlabel!("J")
-	ylabel!("Market Share")
+	ylabel!("Market Share (%)")
 end
 
 # ╔═╡ c2e66fe8-0b0c-4617-9a98-9908c9fcfe42
@@ -429,6 +437,27 @@ begin
 	ylabel!("Cumulative Sum of Number of Purchases")
 end
 
+# ╔═╡ 611ee000-36fa-4c65-b7a1-ba1dcb8e0a10
+q1_df = transform(df, [:u, :ϵ] => ((x,y) -> x .- y) => :δ)
+
+# ╔═╡ 850285f0-db39-4077-8cc5-d2a934251093
+q1_df.exp_δ = exp.(q1_df.δ)
+
+# ╔═╡ de6f9175-314a-4ca2-b03b-441b7be7d429
+# Calculate the sum of exp(δⱼ) ∀ j. Add to q1_df
+transform!(groupby(q1_df, :i), :δ => (x -> sum(exp.(x))) => :sum_exp_δⱼ)
+
+# ╔═╡ ea67d5de-15a5-430d-81e3-2907dbea1823
+# Calculate choice probabilities by logit instead of by market share
+
+transform!(groupby(q1_df, :j), [:exp_δ, :sum_exp_δⱼ] => ((x,y) -> round.(100 .* x ./ (1 .+ y), digits = 2)) => :prob)
+
+# ╔═╡ ec25c08c-df0d-4e57-8ff1-3673f64797dd
+q1_summary = combine(groupby(q1_df, :j), :prob => mean)
+
+# ╔═╡ 83281bef-80a8-40ef-80d4-84015afdbab4
+pretty_table(q1_summary)
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -438,6 +467,7 @@ FreqTables = "da1fdf0e-e0ff-5433-a45f-9bb5ff651cb1"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
 PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
 VegaLite = "112f6efa-9a02-5b7d-90c0-432ed331239a"
@@ -1743,5 +1773,11 @@ version = "0.9.1+5"
 # ╟─4bc4f6a8-c72e-4b18-b97d-355ee2b082f6
 # ╠═847917f8-2684-4315-8575-9736d43c39e3
 # ╠═c2e66fe8-0b0c-4617-9a98-9908c9fcfe42
+# ╠═611ee000-36fa-4c65-b7a1-ba1dcb8e0a10
+# ╠═850285f0-db39-4077-8cc5-d2a934251093
+# ╠═de6f9175-314a-4ca2-b03b-441b7be7d429
+# ╠═ea67d5de-15a5-430d-81e3-2907dbea1823
+# ╠═ec25c08c-df0d-4e57-8ff1-3673f64797dd
+# ╠═83281bef-80a8-40ef-80d4-84015afdbab4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
