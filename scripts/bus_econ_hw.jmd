@@ -4,7 +4,7 @@ author : Mason Ross Hayes
 institution: Toulouse School of Economics
 date: `j import Dates; Dates.Date(Dates.now())` 
 weave_options:
-  out_path: submissions
+  out_path: temp
   doctype: md2pdf
 ---
 
@@ -15,21 +15,25 @@ include("bus_econ_hw.jl")
 ```
 # Question 1
 
+We are given that there are $J + 1$ goods; I interpret this as meaning there are $J + 1$ goods on the market, *not including* the outside option. We are provided with the assumtions that: $J = 8$, $p_j = 10 - j/2$, $\xi_j = j/5$, and $x_j = 10 - j/10$, where $p_j$ is the price of good j, $\xi_j$ and $x_j$ are some characteristics of good j that are common across individuals. Each person purchases at most one good, and the utility of the outside option is normalized to zero. 
+
 Assuming that individual indirect utility is given by:
 
 $u_{ij} = \beta x_j - \alpha p_j + \xi_j + \varepsilon_{ij}$
 
-and that $\varepsilon_{ij} \sim \text{GeneralizedExtremeValue}(0,1,0)$ , I simulate a market with $N = 10000$ individuals and $J+1$ products.
+and that $\varepsilon_{ij} \sim \text{GeneralizedExtremeValue}(0,1,0)$ , I simulate a market with $N = 10000$ individuals and $J+1$ products. The dataframe of simulated data is described below:
 
-Given that $\alpha = \beta = 1$ , we have the following purchase decisions. Choice probability is calculated both directly and by simulated market shares. Note that in this first case (Case 1), the market is covered:
+```julia, echo = false
+describe(rename(df, [:ϵ => :epsilon, :ξ => :xi, :α => :alpha]))
+```
+
+Given that $\alpha = \beta = 1$ , we have the following purchase decisions. The share of the individual choices can be interpreted in two equivalent ways: the share of the market captured by each product, or the probability of purchasing a given product *j*. Choice probability is calculated both directly (`prob_mean`) and by simulated market shares. Note that in this first case (Case 1), the market is covered, and also note that `cum_chosen` is the cumulative number of purchases.
 
 ```julia, echo = false
 
-pretty_table(leftjoin(select(q1_summary, [:j, :prob_mean]), select(summary, [:j, :market_share1, :cum_chosen1]), on = [:j]))
+leftjoin(select(q1_summary, [:j, :prob_mean]), select(summary, [:j, :market_share1, :cum_chosen1]), on = [:j])
 
 ```
-
-The share of the individual choices can be interpreted in two equivalent ways: the share of the market captured by each product, or the probability of purchasing a given product *j*. 
 
 Let $P_i(j)$ indicate that individual *i* chooses good *j*. Since we assume that the distribution of $\varepsilon_{ij}$ conditional on *i* is the same as its unconditional distribution:
 
@@ -54,18 +58,18 @@ The following table shows the market share of each good *j*, which can be interp
 
 ```julia, echo = false
 
-pretty_table(select(summary, [:j, :market_share1, :cum_chosen1, :market_share2, :cum_chosen2]))
+select(summary, [:j, :market_share1, :cum_chosen1, :market_share2, :cum_chosen2])
 
 ```
 
-The conditional distributions of utility are normalized and plotted below:
+The conditional distributions of utility are normalized and plotted below. More people purchase under Case 1 with the constant $\alpha$, and among those who purchase, mean utility is much higher and variance of utility much lower under Case 1 than Case 2.
 
 ```julia, echo = false
 simulated_utility_lnormal
 
 ```
 
-Market shares under Case 1 and Case 2 are shown below:
+Market shares under Case 1 and Case 2 are shown below. Market share is increasing in j; this is explained by the fact that price is decreasing faster than is $x_j$, and additionally $\xi_j$ is increasing in j, so utility is increasing in j. However, we have the random error term $\epsilon$ that is uncorrelated across observations, and it influences each person's decision. For a given $(i,j)$, $\epsilon$ may be very high and therefore, through its effect on utility, influence the person to choose a good which he otherwise would not have chosen.
 
 ```julia, echo = false
 market_share_ln_vs_1
@@ -80,7 +84,9 @@ utility_vs_α
 
 # Question 3
 
-In this question, we assume that there is a good, the utility of which is independent of *j*; its utility depends only on the marginal utility of income $\alpha$ and on the random shock $\varepsilon_{ij}$. With the addition of the new good, I refer to these as Case 3 (mixed logit with new good) and Case 4 (logit with new good).
+In this question, we assume that there is a good, the utility of which is independent of *j*; its utility depends only on the marginal utility of income $\alpha$ and on the random shock $\varepsilon_{ij}$. In particular, we are given that for this good *k*, $x_k = 3$, $\xi_k = 8$ and $p_k = 10$. The new good is denoted by $k = 9$.
+
+With the addition of the new good, I refer to the new scenarios as Case 3 (mixed logit with new good) and Case 4 (logit with new good).
 
 Under the given conditions, we find:
 
@@ -91,10 +97,10 @@ leftjoin(
      [:j, :market_share3, :cum_chosen3]), 
      select(rename(
     q5_df_summary,:chosen_sum => :chosen4_sum, :market_share => :market_share4, :cum_chosen => :cum_chosen4), 
-    [:j, :market_share4, :cum_chosen4]), on = [:j]) |> pretty_table
+    [:j, :market_share4, :cum_chosen4]), on = [:j])
 ```
 
-Under the mixed logit (Case 3), the new good has a market share of `j round(q4_df_summary.market_share[10], digits = 3)`%, with only `j round(q4_df_summary.chosen_sum[10], digits = 3)` people choosing to purchase it. Those who purchase have a mean $\alpha$ equal to `j round(q4_df_summary.α_mean[10], digits = 3)`. The exact same number of people (`j sum(q4_df_summary.chosen_sum)`) choose to purchase as in Case 2, but now `j round(q4_df_summary.chosen_sum[10], digits = 3)` people now choose good $j = 9$.
+Under the mixed logit (Case 3), the new good has a market share of `j round(q4_df_summary.market_share[10], digits = 3)`%, with only `j round(q4_df_summary.chosen_sum[10], digits = 3)` people choosing to purchase it. Those who purchase have a mean $\alpha$ equal to `j round(q4_df_summary.α_mean[10], digits = 3)`. The exact same number of people (`j sum(q4_df_summary.chosen_sum)`) choose to purchase as in Case 2, but now `j round(q4_df_summary.chosen_sum[10], digits = 3)` people choose good $j = 9$.
 
 Under the standard logit from Case 4, the new good has a market share of `j round(q5_df_summary.market_share[10], digits = 3)`%, with only `j round(q5_df_summary.chosen_sum[10], digits = 3)` people choosing to purchase it. 
 
@@ -116,8 +122,12 @@ market_share_plot
 
 ```
 
+The market shares are almost identical before and after the addition of the new good. In both Case 3 and 4, the market share of good 9 is negligible. We can obtain a better understanding of what is happening in these markets by also looking at the cumulative number of purchases:
+
 ```julia, echo = false
 
 cumsum_purchases_plot
 
 ```
+
+We can see that with the uncertainty in $\alpha$ and the fact that it has a mean higher than 1, the cumulative number of purchases is always lower for any j. 
